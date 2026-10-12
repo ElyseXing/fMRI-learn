@@ -14,8 +14,9 @@ HIGH_PASS = 0.01
 LOW_PASS = 0.1
 CONFOUND_CANDIDATES = {
     "x", "y", "z", "transx", "transy", "transz",
+    "motionx", "motiony", "motionz",
     "rotx", "roty", "rotz", "rotationx", "rotationy", "rotationz",
-    "whitematter", "csf",
+    "motionpitch", "motionroll", "motionyaw", "whitematter", "wm", "csf",
 }
 OUTPUT_DIR = Path("outputs")
 
@@ -65,7 +66,7 @@ def main():
     signals = masker.fit_transform(func_img, confounds=confounds)
     connectivity = np.corrcoef(signals, rowvar=False)
 
-    roi_names = [str(label) for label in masker.labels_]
+    roi_names = [str(label) for label in atlas.labels[1:]]
     if len(roi_names) != connectivity.shape[0]:
         roi_names = [f"ROI_{index + 1:02d}" for index in range(connectivity.shape[0])]
 

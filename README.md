@@ -1,11 +1,14 @@
 # fMRI 数据分析入门
 
-这是一个面向初学者的轻量学习项目：从认识 fMRI 文件开始，逐步检查数据、理解预处理，再计算静息态 ROI 功能连接。示例使用 Nilearn 可按需下载的 ADHD-200 公开数据，每次只取 1 名受试者；数据保存在本机缓存，不会提交到仓库。
+这是一个面向初学者的 fMRI 数据分析实战教程。建议先按顺序运行 Jupyter Notebook：从理解预处理和质量控制开始，逐步检查影像、观察混杂变量，再提取 ROI 时间序列并计算静息态功能连接。示例使用 Nilearn 可按需下载的 ADHD-200 公开数据，每次只取 1 名受试者；数据保存在本机缓存，不会提交到仓库。
 
 ## 学习路线
 
-1. [检查样例数据](tutorials/01_inspect_data.py)：下载一名受试者，查看 NIfTI 维度、体素大小、TR 和时间点数量。
-2. [静息态功能连接](tutorials/02_resting_state_fc.py)：用 Harvard-Oxford 皮层图谱提取 ROI 时间序列，进行混杂回归、去趋势和带通滤波，计算并绘制 ROI-ROI Pearson 相关矩阵。
+1. [预处理与质量控制入门](tutorials/00_preprocessing_and_qc.ipynb)：梳理原始数据到可分析影像的流程，并用样例观察影像和混杂变量。它不运行完整预处理，也不替代 fMRIPrep 报告。
+2. [检查样例数据](tutorials/01_inspect_data.ipynb)：逐步查看 NIfTI 维度、体素大小、TR、时间点和中间时间点的影像。
+3. [静息态功能连接](tutorials/02_resting_state_fc.ipynb)：逐步查看混杂变量、ROI 时间序列、时间序列清理和 ROI-ROI Pearson 相关矩阵。
+
+每本 Notebook 都由说明、代码和输出组成。请按顺序运行单元格，观察每一步的数据形状与图像；Notebook 内的问题可以先暂停思考，再继续运行。原有 `.py` 脚本保留为快速复现入口，和对应 Notebook 使用相同的核心处理步骤。
 
 ## 环境准备
 
@@ -14,17 +17,26 @@
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-先运行数据检查，再运行功能连接脚本：
+在 VS Code 中安装 **Python** 和 **Jupyter** 扩展，打开 `tutorials/` 下的 `.ipynb` 文件，并将 Notebook kernel 选择为项目的 `.venv` 环境。也可以在终端启动 JupyterLab（需另行安装 JupyterLab）：
+
+```bash
+python -m jupyter lab
+```
+
+建议按学习路线依次运行三本 Notebook。首次运行会联网下载样例数据；功能连接 Notebook 还会下载图谱。下载较慢时请耐心等待，并避免同时启动多个首次下载任务。缓存通常位于用户目录下的 `nilearn_data`。网络或磁盘空间不足时，可以先阅读 Notebook 中的说明。
+
+如果只想从终端快速复现完整脚本：
 
 ```bash
 python tutorials/01_inspect_data.py
 python tutorials/02_resting_state_fc.py
 ```
 
-首次运行会联网下载样例数据和图谱；网络或磁盘空间不足时，可先只阅读脚本与本文。输出写入 `outputs/`，Nilearn 下载缓存通常位于用户目录下的 `nilearn_data`。
+功能连接结果写入 `outputs/connectivity_matrix.csv` 和 `outputs/connectivity_matrix.png`。本项目没有单独的自动化测试套件；按顺序执行 Notebook 或脚本并检查输出，是本教程的端到端验证方式。
 
 ## fMRI 文件是什么
 
@@ -36,9 +48,9 @@ BIDS 是组织神经影像数据的命名和目录约定。常见文件包括 `s
 
 ### 1. 质量检查与空间预处理
 
-拿到原始数据后，先检查图像是否完整、方向与空间分辨率是否合理、时间点是否足够、头动和异常 volume 是否严重。典型空间预处理包含 slice-timing 校正（按采集顺序校正切片时间差）、motion correction（配准 volume 并估计头动）、畸变校正（有场图或反向相位编码图时）、配准到 T1w、标准空间归一化，以及按研究目的决定是否平滑。每一步都可能引入假设；例如空间平滑会提升信噪比，也会模糊相邻脑区边界。
+拿到原始数据后，先检查图像是否完整、方向与空间分辨率是否合理、时间点是否足够、头动和异常 volume 是否严重。典型空间预处理包含 slice-timing 校正（按采集顺序校正切片时间差）、motion correction（配准 volume 并估计头动）、畸变校正（有场图或反向相位编码图时）、配准到 T1w、标准空间归一化，以及按研究目的决定是否平滑。每一步都可能引入假设；例如空间平滑会提升信噪比，也会模糊相邻脑区边界。本项目的 [预处理与质量控制 Notebook](tutorials/00_preprocessing_and_qc.ipynb) 以流程说明、header 检查和图像观察建立直观认识，不会伪装成实际运行的预处理流水线。
 
-本项目的 ADHD 样例已经过标准化处理，不是从原始扫描开始的完整预处理练习。真实项目通常应先按 BIDS 整理原始数据，再用经过验证的流程（例如 fMRIPrep）生成预处理结果，并检查 HTML 报告、头动、配准和有效数据。不要对已经预处理的样例再次做运动校正或空间归一化。
+本项目的 ADHD 样例已经过标准化处理，不是从原始扫描开始的完整预处理练习。真实项目通常应先按 BIDS 整理原始数据，再用经过验证的流程（例如 fMRIPrep）生成预处理结果，并检查 HTML 报告、头动、配准和有效数据。不要对已经预处理的样例再次做运动校正或空间归一化。理解某种预处理做了什么，不代表仅凭一张样例图就完成了质量控制；实际研究要结合采集元数据、运动指标和预处理报告。
 
 ### 2. 时间序列清理与 ROI 提取
 
